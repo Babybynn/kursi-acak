@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="id" class="dark">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SeatRandomizer 9D WICAKA</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+body{font-family:Inter,sans-serif;background:#252525;color:#e5e5e5}.desk-card{transition:all .3s}.desk-card.shuffling{animation:pulse .22s infinite alternate}@keyframes pulse{to{transform:scale(1.025) rotate(1deg)}}
+.seat-box{min-height:104px}.seat-window{background:rgba(30,64,175,.22);border-color:rgba(96,165,250,.5)}.seat-away{background:rgba(157,23,77,.18);border-color:rgba(244,114,182,.45)}.seat-empty{background:rgba(136,19,55,.2);border-color:rgba(251,113,133,.45)}
+@media print{.no-print{display:none!important}body{background:white!important;color:black!important}.print-border{background:white!important;color:black!important;border:2px solid #333!important;box-shadow:none!important}.desk-card,.seat-box{background:white!important;color:black!important;border:1px solid #777!important}.seat-box span,.seat-box div{color:black!important}}
+</style>
+</head>
+<body class="min-h-screen flex flex-col">
+<header class="no-print sticky top-0 z-10 border-b border-[#3f3f3f] bg-[#1e1e1e]">
+ <div class="max-w-7xl mx-auto p-4 flex flex-wrap items-center justify-between gap-3">
+  <div><h1 class="text-xl sm:text-2xl font-extrabold">SeatRandomizer <span class="text-xs rounded-full bg-[#3f3f3f] px-2 py-1">9D WICAKA</span></h1><p class="text-xs text-gray-400">Denah 4 × 4 meja • 31 siswa • 1 kursi kosong</p></div>
+  <div class="flex flex-wrap gap-2"><button id="shuffleBtn" onclick="startShuffle()" class="rounded-xl bg-[#cfcfcf] text-[#252525] px-4 py-2 font-bold">⤨ Acak Tempat Duduk</button><button onclick="downloadPNG()" class="rounded-xl border border-gray-600 px-3 py-2">↓ Save PNG</button><button onclick="resetLayout()" class="rounded-xl border border-gray-600 px-3 py-2">↺ Reset</button><button onclick="window.print()" class="rounded-xl border border-gray-600 px-3 py-2">⎙ Cetak / PDF</button></div>
+ </div>
+</header>
+<main class="max-w-7xl mx-auto w-full flex-1 p-4 sm:p-6">
+ <section class="no-print grid md:grid-cols-2 gap-3 mb-5">
+  <div class="rounded-2xl border border-gray-700 bg-[#1e1e1e] p-4"><label for="mode" class="block text-xs text-gray-400 mb-2">MODE PENGACAKAN</label><select id="mode" class="w-full bg-[#252525] rounded-lg p-2 border border-gray-700"><option value="bebas">Bebas (campur / random)</option><option value="cowo">Cowo dekat jendela • cewe di sisi kanan</option><option value="cewe">Cewe dekat jendela • cowo di sisi kanan</option></select><p class="text-xs text-gray-400 mt-2">AREA JENDELA = dua kolom meja paling kiri (C1–C2, garis oranye). AREA JAUH JENDELA = dua kolom kanan (C3–C4, garis putih).</p></div>
+  <div class="rounded-2xl border border-gray-700 bg-[#1e1e1e] p-4"><label for="search" class="block text-xs text-gray-400 mb-2">CARI NOMOR ABSEN</label><input id="search" type="number" min="1" max="31" placeholder="Masukkan absen 1–31" oninput="highlightStudent(this.value)" class="w-full bg-[#252525] rounded-lg p-2 border border-gray-700"><div class="flex flex-wrap gap-4 mt-3 text-xs"><span>🟦 Cowo</span><span>🩷 Cewe</span><span>🟥 Kosong</span></div></div>
+ </section>
+ <section id="captureArea" class="print-border relative overflow-hidden rounded-3xl border border-gray-700 bg-[#1e1e1e] p-4 sm:p-8 shadow-2xl">
+  <div class="text-center mb-5"><h2 class="text-xl sm:text-2xl font-extrabold tracking-wide">DENAH TEMPAT DUDUK — 9D WICAKA</h2><p id="modeCaption" class="text-xs text-gray-400 mt-1">Area jendela: dua kolom meja sebelah kiri</p></div>
+  <div class="max-w-5xl mx-auto mb-7 flex flex-col sm:flex-row gap-3"><div class="flex-1 rounded-xl border-2 border-gray-600 bg-[#252525] p-3 text-center text-sm font-bold">▤ PAPAN TULIS / DEPAN KELAS</div><div class="rounded-xl border border-gray-600 bg-[#252525] px-6 py-3 text-center text-xs font-bold">MEJA GURU</div></div>
+  <div class="max-w-5xl mx-auto flex flex-wrap justify-between gap-2 mb-3 text-[10px] font-bold tracking-wide"><span class="text-orange-300">🟠 C1–C2: DEKAT JENDELA (KIRI)</span><span class="text-gray-200">⬜ C3–C4: JAUH DARI JENDELA (KANAN)</span></div><div class="max-w-5xl mx-auto"><div id="desksGrid" class="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-5"></div></div>
+  <div class="mt-7 border-t border-gray-700 pt-4 text-center text-xs tracking-widest text-gray-400">PINTU MASUK BELAKANG KELAS 9D</div>
+ </section>
+</main>
+<footer class="no-print text-center text-xs text-gray-500 p-4">© 2026 SeatRandomizer 9D WICAKA</footer>
+<script>
+const gender={1:'cowo',2:'cewe',3:'cowo',4:'cewe',5:'cowo',6:'cewe',7:'cowo',8:'cowo',9:'cowo',10:'cowo',11:'cowo',12:'cewe',13:'cowo',14:'cewe',15:'cewe',16:'cewe',17:'cewe',18:'cewe',19:'cowo',20:'cowo',21:'cowo',22:'cowo',23:'cowo',24:'cowo',25:'cewe',26:'cowo',27:'cowo',28:'cewe',29:'cewe',30:'cewe',31:'cewe',0:'kosong'};
+const boys=Array.from({length:31},(_,i)=>i+1).filter(n=>gender[n]==='cowo');
+const girls=Array.from({length:31},(_,i)=>i+1).filter(n=>gender[n]==='cewe');
+let arrangement=[];
+const leftSeats=[],rightSeats=[];
+for(let d=0;d<16;d++){
+  const deskCol=d%4;
+  (deskCol<2?leftSeats:rightSeats).push(d*2,d*2+1);
+}
+function shuffle(a){a=[...a];for(let i=a.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[a[i],a[j]]=[a[j],a[i]]}return a}
+function currentMode(){return document.getElementById('mode').value}
+function makeSideGroup(mode){
+  const nearGender=mode==='cowo'?'cowo':'cewe';
+  const near=shuffle(nearGender==='cowo'?boys:girls);
+  const far=shuffle(nearGender==='cowo'?girls:boys);
+  // Kedua area fisiknya masing-masing 16 kursi. Karena cowo berjumlah 17,
+  // satu cowo menjadi pengecualian kapasitas di area dekat jendela.
+  if(mode==='cowo') return {left:near.slice(0,16),right:shuffle(far.concat(near.slice(16),0))};
+  return {left:shuffle(near.concat(far.slice(16),0)),right:far.slice(0,16)};
+}
+function buildArrangement(mode){
+  const arr=Array(32).fill(null);
+  if(mode==='bebas'){
+    const nums=shuffle(Array.from({length:31},(_,i)=>i+1).concat(0));
+    const emptyIndex=24+Math.floor(Math.random()*8);
+    const emptyAt=nums.indexOf(0);[nums[emptyAt],nums[emptyIndex]]=[nums[emptyIndex],nums[emptyAt]];
+    return nums;
+  }
+  const nearGender=mode==='cowo'?'cowo':'cewe';
+  const near=shuffle(nearGender==='cowo'?boys:girls);
+  const far=shuffle(nearGender==='cowo'?girls:boys);
+  // Absen 7 tidak boleh menjadi siswa cowo yang ditempatkan di samping kursi kosong.
+  const boyPool=nearGender==='cowo'?near:far;
+  const overflowBoy=boyPool.find(n=>n!==7);
+  const leftValues=mode==='cowo'?near.filter(n=>n!==overflowBoy).slice(0,16):near.slice(0,14);
+  const rightValues=mode==='cowo'?far.slice(0,14):far.filter(n=>n!==overflowBoy).slice(0,16);
+  const overflowSide=mode==='cowo'?'right':'left';
+  const overflowSeats=overflowSide==='left'?leftSeats:rightSeats;
+  const regularSeats=overflowSeats.filter((_,i)=>i!==overflowSeats.length-2&&i!==overflowSeats.length-1);
+  // Tempatkan siswa cowo pengecualian berpasangan dengan kursi kosong pada meja yang sama.
+  // Gunakan salah satu meja di baris keempat pada sisi yang memuat pengecualian.
+  const lastRowDesks=overflowSide==='left'?[12,13]:[14,15];
+  const chosenDesk=lastRowDesks[Math.floor(Math.random()*lastRowDesks.length)];
+  const pair=[chosenDesk*2,chosenDesk*2+1];
+  const boySeat=pair[Math.floor(Math.random()*2)];
+  const emptySeat=pair[0]===boySeat?pair[1]:pair[0];
+  arr[boySeat]=overflowBoy;
+  arr[emptySeat]=0;
+  const sideValues=overflowSide==='left'?leftValues:rightValues;
+  const remainingSeats=overflowSeats.filter(i=>i!==boySeat&&i!==emptySeat);
+  shuffle(sideValues).forEach((n,i)=>arr[remainingSeats[i]]=n);
+  const otherSeats=overflowSide==='left'?rightSeats:leftSeats;
+  const otherValues=overflowSide==='left'?rightValues:leftValues;
+  shuffle(otherValues).forEach((n,i)=>arr[otherSeats[i]]=n);
+  // Absen 7 tidak boleh menjadi siswa yang dipisahkan di samping kursi kosong,
+  // dan tidak boleh sebangku dengan absen 6 atau 12.
+  const i7=arr.indexOf(7),partner=i7%2===0?i7+1:i7-1;
+  if(arr[partner]===0 || [6,12].includes(arr[partner])){
+    const side=leftSeats.includes(i7)?leftSeats:rightSeats;
+    const candidate=side.find(i=>i!==i7&&i!==partner&&arr[i]!==0&&arr[i]!==overflowBoy&&arr[i]!==6&&arr[i]!==12);
+    if(candidate!==undefined)[arr[partner],arr[candidate]]=[arr[candidate],arr[partner]];
+  }
+  return arr;
+}
+function resetLayout(){arrangement=Array.from({length:31},(_,i)=>i+1).concat(0);renderGrid()}
+function renderGrid(){
+ const mode=currentMode(),grid=document.getElementById('desksGrid');grid.innerHTML='';
+ const caption=document.getElementById('modeCaption');
+ caption.textContent=mode==='bebas'?'Mode bebas • semua siswa diacak. Area jendela tetap di dua kolom kiri.':(mode==='cowo'?'Cowo diprioritaskan dekat jendela (dua kolom kiri).':'Cewe ditempatkan dekat jendela (dua kolom kiri).')+' Sisi kanan = jauh dari jendela.';
+ for(let d=0;d<16;d++){
+  const row=Math.floor(d/4)+1,col=d%4+1,first=arrangement[d*2],second=arrangement[d*2+1],isWindow=col<=2;
+  const card=document.createElement('div');
+  card.className='desk-card rounded-2xl border p-3 shadow-md '+(isWindow?'border-orange-400/70 bg-orange-950/10':'border-gray-700 bg-[#252525]');
+  card.innerHTML=`<div class="flex justify-between items-center border-b border-gray-700 pb-2 mb-2 text-[10px] text-gray-400"><b class="text-gray-200">MEJA R${row}-C${col}</b><span>#${d+1}</span></div><div class="grid grid-cols-2 gap-2">${seatHTML(first,'Kiri',d*2,isWindow)}${seatHTML(second,'Kanan',d*2+1,isWindow)}</div>`;
+  grid.appendChild(card);
+ }
+ highlightStudent(document.getElementById('search').value);
+}
+function seatHTML(n,label,index,isWindow){
+ const side=isWindow?'DEKAT JENDELA':'JAUH DARI JENDELA';
+ if(n===0)return `<div class="seat-box seat-empty rounded-xl border p-2 flex flex-col items-center justify-center text-center" data-student="0"><span class="text-[9px] text-rose-300">${label}</span><b class="text-xs mt-1">KOSONG</b><span class="text-[8px] mt-1 text-gray-400">${side}</span></div>`;
+ const g=gender[n],cls=g==='cowo'?'seat-window':'seat-away',tag=g==='cowo'?'text-blue-300':'text-pink-300';
+ return `<div class="seat-box ${cls} rounded-xl border p-2 flex flex-col items-center justify-center text-center" data-student="${n}"><div class="w-full flex justify-between text-[9px] text-gray-400"><span>${label}</span><span class="${tag} font-bold">${g.toUpperCase()}</span></div><span class="text-[8px] text-gray-400 mt-1">ABSEN</span><b class="student-id text-2xl">${n}</b><span class="text-[8px] text-gray-400 mt-1">${side}</span></div>`;
+}
+function startShuffle(){
+ const btn=document.getElementById('shuffleBtn');if(btn.disabled)return;
+ btn.disabled=true;btn.classList.add('opacity-50');
+ document.querySelectorAll('.desk-card').forEach(c=>c.classList.add('shuffling'));
+ let ticks=0;const timer=setInterval(()=>{
+   arrangement=shuffle(arrangement);renderGrid();ticks++;
+   if(ticks>=8){clearInterval(timer);arrangement=buildArrangement(currentMode());renderGrid();document.querySelectorAll('.desk-card').forEach(c=>c.classList.remove('shuffling'));btn.disabled=false;btn.classList.remove('opacity-50')}
+ },90);
+}
+function highlightStudent(value){const n=parseInt(value,10);document.querySelectorAll('.seat-box').forEach(box=>{box.classList.remove('ring-4','ring-white','brightness-150');if(n&&Number(box.dataset.student)===n)box.classList.add('ring-4','ring-white','brightness-150')})}
+function downloadPNG(){const el=document.getElementById('captureArea');if(!window.html2canvas){alert('Library ekspor belum termuat. Periksa koneksi internet.');return}html2canvas(el,{backgroundColor:'#1e1e1e',scale:2,useCORS:true}).then(canvas=>{const a=document.createElement('a');a.download='Denah-Kursi-9D-WICAKA.png';a.href=canvas.toDataURL('image/png');a.click()})}
+document.getElementById('mode').addEventListener('change',()=>{arrangement=buildArrangement(currentMode());renderGrid()});
+resetLayout();
+</script>
+</body></html>
